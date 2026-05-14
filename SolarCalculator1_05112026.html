@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SolarCalculator1 - Final Specification</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #020617;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --border: #334155;
+            --sun: #fcd34d;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        h1, h2 { margin-top: 0; font-size: 1rem; color: var(--sun); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.7rem; margin-bottom: 4px; color: #94a3b8; font-weight: 600; }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: white;
+            font-size: 0.85rem;
+        }
+
+        .visuals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .viz-box {
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+            border-radius: 8px;
+            height: 350px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .slider-box {
+            margin-top: 10px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: border 0.3s;
+        }
+        .slider-box.active-anim { border-color: var(--sun); }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .anim-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.6rem;
+            color: var(--sun);
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .anim-status.visible { opacity: 1; }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.8rem;
+        }
+        .results-table th { color: #94a3b8; border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+        .results-table td { padding: 8px; border-bottom: 1px solid #334155; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h1>Configuration</h1>
+        <div class="input-group"><label>Latitude (°N)</label><input type="number" id="lat" value="40" step="0.1"></div>
+        <div class="input-group"><label>Azimuth (180°=S)</label><input type="number" id="azimuth" value="180" step="0.1"></div>
+        <div class="input-group"><label>Panel Pitch (°)</label><input type="number" id="pitch" value="26.5" step="0.1"></div>
+        
+        <div class="slider-box" id="day-box">
+            <label id="day-label">Day: Winter Solstice (0)</label>
+            <input type="range" id="day-slider" min="0" max="365" value="0">
+        </div>
+        
+        <div class="slider-box" id="time-box">
+            <label id="time-label">Time: Local Noon</label>
+            <input type="range" id="time-slider" min="0" max="1000" value="500">
+        </div>
+
+        <button id="run-single">Run Yearly Integration</button>
+        <div id="prog-parent" style="height:4px; background:#334155; margin-top:10px; display:none;"><div id="progress-fill" style="height:100%; width:0; background:var(--sun);"></div></div>
+    </div>
+
+    <div class="visuals-grid">
+        <div class="card">
+            <h2>Global Perspective</h2>
+            <div class="viz-box">
+                <svg width="100%" height="100%" viewBox="0 0 400 350">
+                    <defs>
+                        <linearGradient id="sunGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#fbbf24" /><stop offset="100%" stop-color="#fbbf24" stop-opacity="0" /></linearGradient>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#fbbf24"/></marker>
+                        <marker id="redhead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#f87171"/></marker>
+                    </defs>
+                    <rect x="0" y="0" width="60" height="350" fill="url(#sunGrad)" />
+                    <g stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow)">
+                        <line x1="70" y1="160" x2="100" y2="160" /><line x1="70" y1="175" x2="100" y2="175" /><line x1="70" y1="190" x2="100" y2="190" />
+                    </g>
+                    <text x="85" y="210" fill="#fbbf24" font-size="9" text-anchor="middle">Sunlight [1,0,0]</text>
+                    <g transform="translate(250, 175)">
+                        <circle r="80" fill="#1e293b" stroke="#334155" stroke-width="2" />
+                        <line id="earth-axis" x1="0" y1="-110" x2="0" y2="110" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3" />
+                        <line id="panel-norm" x1="0" y1="0" x2="0" y2="0" stroke="#f87171" stroke-width="2.5" marker-end="url(#redhead)" />
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Effective Area Projection</h2>
+            <div class="viz-box">
+                <div id="anim-indicator" class="anim-status">Auto-Animating</div>
+                <svg width="100%" height="100%" viewBox="-100 -100 200 200">
+                    <rect x="-60" y="-60" width="120" height="120" fill="none" stroke="#334155" stroke-dasharray="4" />
+                    <polygon id="panel-projection" points="" fill="white" opacity="0.95" />
+                    <text x="0" y="85" fill="#94a3b8" font-size="10" text-anchor="middle">View from Sunlight Source</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px; width: 100%; max-width: 1200px;">
+    <table class="results-table" id="results-log">
+        <thead><tr><th>Config</th><th>Energy (Sum)</th><th>Ratio (Sum/N)</th><th>JSON</th></tr></thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script id="worker-code" type="application/javascript">
+    self.onmessage = function(e) {
+        const { lat, azimuth, pitch } = e.data;
+        const n = 1000000;
+        let collected = 0;
+        const latR = lat * Math.PI / 180, azR = azimuth * Math.PI / 180, pitchR = pitch * Math.PI / 180, tiltR = 23.5 * Math.PI / 180;
+        
+        for (let i = 0; i < n; i++) {
+            const fy = i / n;
+            const dec = -tiltR * Math.cos(2 * Math.PI * fy);
+            const hr = 2 * Math.PI * ((i * 365.25 / n) % 1);
+
+            // sinAlt is the dot product of the local ground normal and the sun vector
+            const sinAlt = Math.sin(latR)*Math.sin(dec) + Math.cos(latR)*Math.cos(dec)*Math.cos(hr);
+            
+            // Only calculate and add energy if the sun is above the horizon (sinAlt > 0)
+            if (sinAlt > 0) {
+                const cosAlt = Math.sqrt(Math.max(0, 1 - sinAlt*sinAlt));
+                const sAz = Math.atan2(Math.sin(hr), Math.cos(hr)*Math.sin(latR) - Math.tan(dec)*Math.cos(latR));
+                const dot = sinAlt*Math.sin(pitchR) + cosAlt*Math.cos(pitchR)*Math.cos(sAz - (azR - Math.PI));
+                
+                // Panel face illumination check
+                if (dot < 0) collected += -dot;
+            }
+            
+            if (i % 10000 === 0) self.postMessage({ type: 'progress', value: (i / n) * 100 });
+        }
+        self.postMessage({ type: 'result', energy: collected, ratio: (collected/n).toFixed(6), label: `Lat:${lat} Az:${azimuth} P:${pitch}` });
+    };
+</script>
+
+<script>
+    const dayS = document.getElementById('day-slider'), timeS = document.getElementById('time-slider');
+    const dayL = document.getElementById('day-label'), timeL = document.getElementById('time-label');
+    const timeBox = document.getElementById('time-box'), animIndicator = document.getElementById('anim-indicator');
+    const runBtn = document.getElementById('run-single'), progFill = document.getElementById('progress-fill'), progParent = document.getElementById('prog-parent');
+
+    const workerBlob = new Blob([document.getElementById('worker-code').textContent], {type:'application/javascript'});
+    const worker = new Worker(URL.createObjectURL(workerBlob));
+
+    let lastInteraction = Date.now();
+    let isAnimating = false;
+
+    function rotate3D(v, axis, angle) {
+        const c = Math.cos(angle), s = Math.sin(angle);
+        if(axis==='z') return [v[0]*c - v[1]*s, v[0]*s + v[1]*c, v[2]];
+        if(axis==='y') return [v[0]*c + v[2]*s, v[1], -v[0]*s + v[2]*c];
+        if(axis==='x') return [v[0], v[1]*c - v[2]*s, v[1]*s + v[2]*c];
+    }
+
+    function update() {
+        const day = parseInt(dayS.value), time = parseInt(timeS.value) / 1000;
+        const lat = parseFloat(document.getElementById('lat').value), pitch = parseFloat(document.getElementById('pitch').value);
+        const az = parseFloat(document.getElementById('azimuth').value);
+
+        dayL.innerText = `Day: ${day === 0 || day === 365 ? "Winter Solstice" : day === 182 ? "Summer Solstice" : "Day " + day}`;
+        timeL.innerText = `Time: ${time === 0.5 ? "Local Noon" : (time*24).toFixed(1) + "h"}`;
+
+        const tilt = 23.5 * Math.cos(2 * Math.PI * day / 365), tiltR = tilt * Math.PI / 180;
+        const axis = document.getElementById('earth-axis');
+        axis.setAttribute('x1', 110*Math.sin(tiltR)); axis.setAttribute('y1', -110*Math.cos(tiltR));
+        axis.setAttribute('x2', -110*Math.sin(tiltR)); axis.setAttribute('y2', 110*Math.cos(tiltR));
+
+        // Global View Normal
+        const vLat = (lat + tilt) * Math.PI / 180;
+        const noonX = -80 * Math.cos(vLat), noonY = -80 * Math.sin(vLat);
+        const projectedPitch = pitch * Math.cos((180 - az) * Math.PI / 180);
+        const pR = projectedPitch * Math.PI / 180, vA = vLat - pR;
+        const norm = document.getElementById('panel-norm');
+        norm.setAttribute('x1', noonX); norm.setAttribute('y1', noonY);
+        norm.setAttribute('x2', noonX - 40*Math.cos(vA)); norm.setAttribute('y2', noonY - 40*Math.sin(vA));
+
+        // Projection view
+        const hr = 2 * Math.PI * (time - 0.5);
+        const dec = -23.5 * Math.PI / 180 * Math.cos(2 * Math.PI * day / 365);
+        const lR = lat * Math.PI / 180, pR_raw = pitch * Math.PI / 180;
+
+        let vertices = [[0, -60, -60], [0, 60, -60], [0, 60, 60], [0, -60, 60]];
+        const points = vertices.map(v => {
+            let p = rotate3D(v, 'y', -pR_raw);
+            p = rotate3D(p, 'z', (180 - az)*Math.PI/180);
+            p = rotate3D(p, 'y', -lR);
+            p = rotate3D(p, 'z', hr);
+            p = rotate3D(p, 'y', dec);
+            return p;
+        });
+
+        const avgY = points.reduce((s, p) => s + p[1], 0) / 4;
+        const avgZ = points.reduce((s, p) => s + p[2], 0) / 4;
+        const polyPoints = points.map(p => `${p[1] - avgY},${p[2] - avgZ}`).join(' ');
+
+        // Panel illumination check (Inverted per request)
+        let panelNormal = [-1, 0, 0];
+        panelNormal = rotate3D(panelNormal, 'y', -pR_raw);
+        panelNormal = rotate3D(panelNormal, 'z', (180 - az)*Math.PI/180);
+        panelNormal = rotate3D(panelNormal, 'y', -lR);
+        panelNormal = rotate3D(panelNormal, 'z', hr);
+        panelNormal = rotate3D(panelNormal, 'y', dec);
+
+        // Ground illumination check (Horizon Check: pitch = 0)
+        let groundNormal = [-1, 0, 0];
+        //groundNormal = rotate3D(groundNormal, 'y', 0);
+        //groundNormal = rotate3D(groundNormal, 'z', (180 - az)*Math.PI/180);
+        groundNormal = rotate3D(groundNormal, 'y', -lR);
+        groundNormal = rotate3D(groundNormal, 'z', hr);
+        groundNormal = rotate3D(groundNormal, 'y', dec);
+
+        // Draw only if it is daytime AND the panel is facing the sun
+        const isDaytime = groundNormal[0] > 0;
+        const isPanelFacingSun = panelNormal[0] > 0;
+        
+        document.getElementById('panel-projection').setAttribute('points', (isDaytime && isPanelFacingSun) ? polyPoints : "");
+    }
+
+    function animate() {
+        if (Date.now() - lastInteraction > 5000) {
+            isAnimating = true;
+            timeBox.classList.add('active-anim');
+            animIndicator.classList.add('visible');
+            timeS.value = (parseInt(timeS.value) + 2) % 1000;
+            update();
+        } else if (isAnimating) {
+            isAnimating = false;
+            timeBox.classList.remove('active-anim');
+            animIndicator.classList.remove('visible');
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function resetTimer() { lastInteraction = Date.now(); }
+
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    [dayS, timeS].forEach(s => s.oninput = () => { resetTimer(); update(); });
+    document.querySelectorAll('input').forEach(i => i.onchange = update);
+
+    runBtn.onclick = () => {
+        progParent.style.display = 'block';
+        runBtn.disabled = true;
+        worker.postMessage({ lat: parseFloat(document.getElementById('lat').value), azimuth: parseFloat(document.getElementById('azimuth').value), pitch: parseFloat(document.getElementById('pitch').value) });
+    };
+
+    worker.onmessage = (e) => {
+        if (e.data.type === 'progress') {
+            progFill.style.width = e.data.value + '%';
+        } else if (e.data.type === 'result') {
+            progParent.style.display = 'none';
+            runBtn.disabled = false;
+            const row = document.getElementById('results-log').getElementsByTagName('tbody')[0].insertRow(0);
+            row.innerHTML = `<td>${e.data.label}</td><td>${Math.round(e.data.energy).toLocaleString()}</td><td>${e.data.ratio}</td><td><button onclick='saveData(${JSON.stringify(e.data)})'>Save</button></td>`;
+        }
+    };
+
+    function saveData(data) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `solar_run_${Date.now()}.json`; a.click();
+    }
+
+    update();
+    animate();
+</script>
+</body>
+</html>
